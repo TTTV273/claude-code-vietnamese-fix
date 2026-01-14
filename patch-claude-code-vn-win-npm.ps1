@@ -333,7 +333,7 @@ function Main {
         Write-ColorLine "X Khong tim thay Claude Code." $Colors.Red
         Write-Host "  Vui long cai dat Claude Code truoc:"
         Write-ColorLine "  npm install -g @anthropic-ai/claude-code" $Colors.Green
-        exit 1
+        return
     }
 
     Write-ColorLine "   Duong dan: $cliPath" $Colors.Blue
@@ -345,7 +345,7 @@ function Main {
         { $_ -in 'patch', 'fix', 'apply' } {
             if (Test-IsPatched $cliPath) {
                 Write-ColorLine "OK Claude Code da duoc patch truoc do." $Colors.Green
-                exit 0
+                return
             }
 
             Write-ColorLine "-> Dang ap dung patch..." $Colors.Yellow
@@ -366,21 +366,21 @@ function Main {
                 Write-ColorLine "X Khong the ap dung patch." $Colors.Red
                 Write-Host "  Code structure co the da thay doi trong phien ban moi."
                 Write-Host "  Vui long bao loi tai: https://github.com/manhit96/claude-code-vietnamese-fix/issues"
-                exit 1
+                return
             }
         }
 
         { $_ -in 'restore', 'unpatch', 'remove' } {
             if (-not (Test-IsPatched $cliPath)) {
                 Write-ColorLine "Claude Code chua duoc patch." $Colors.Yellow
-                exit 0
+                return
             }
 
             if (Invoke-Restore $cliPath) {
                 Write-ColorLine "OK Da go patch thanh cong." $Colors.Green
             }
             else {
-                exit 1
+                return
             }
         }
 
