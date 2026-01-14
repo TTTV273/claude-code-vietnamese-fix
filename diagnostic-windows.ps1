@@ -1,18 +1,6 @@
 #Requires -Version 5.1
-<#
-.SYNOPSIS
-    Claude Code Vietnamese IME Fix - Cong cu chan doan (Windows)
-
-.DESCRIPTION
-    Thu thap thong tin moi truong de debug loi go tieng Viet.
-    Tu dong luu ket qua ra diagnostic.txt va hoi tao GitHub issue.
-
-.EXAMPLE
-    .\diagnostic-windows.ps1
-
-.LINK
-    https://github.com/manhit96/claude-code-vietnamese-fix
-#>
+# Claude Code Vietnamese IME Fix - Cong cu chan doan (Windows)
+# https://github.com/manhit96/claude-code-vietnamese-fix
 
 $ErrorActionPreference = 'Continue'
 $REPO_URL = "https://github.com/manhit96/claude-code-vietnamese-fix"
@@ -28,8 +16,12 @@ $script:Colors = @{
 }
 
 function Write-ColorLine {
-    param([string]$Text, [string]$Color = 'White')
-    Write-Host $Text -ForegroundColor $Color
+    param([string]$Text, [string]$Color = 'White', [switch]$NoNewLine)
+    if ($NoNewLine) {
+        Write-Host $Text -ForegroundColor $Color -NoNewline
+    } else {
+        Write-Host $Text -ForegroundColor $Color
+    }
 }
 
 function Write-Header {
@@ -333,6 +325,41 @@ function Get-PatchCodeDetails {
     Add-DiagLine ""
 }
 
+function Start-DebugMode {
+    Add-DiagLine "[DEBUG - TEST GO TIENG VIET]"
+    Write-Host ""
+    Write-Host "  Go mot tu tieng Viet (VD: 'viet') roi nhan Enter:"
+    Write-ColorLine "  Nhap: " $Colors.Green -NoNewLine
+    $userInput = [Console]::ReadLine()
+
+    if ($userInput) {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($userInput)
+        $hexString = ($bytes | ForEach-Object { '{0:X2}' -f $_ }) -join ' '
+        Add-DiagLine "  Input: $userInput"
+        Add-DiagLine "  Hex: $hexString"
+
+        # Check for special characters
+        $has7F = $userInput.Contains([char]0x7F)
+        $has08 = $userInput.Contains([char]0x08)
+
+        if ($has7F) {
+            Add-DiagLine "  Ket qua: TIM THAY 0x7F (DEL) - Bo go tieng Viet pattern"
+            Write-ColorLine "  >> Tim thay ky tu DEL (0x7F) - Day la pattern bo go tieng Viet!" $Colors.Green
+        } elseif ($has08) {
+            Add-DiagLine "  Ket qua: TIM THAY 0x08 (Backspace) - Pattern khac"
+            Write-ColorLine "  >> Tim thay ky tu Backspace (0x08) - Pattern bo go khac!" $Colors.Yellow
+        } else {
+            Add-DiagLine "  Ket qua: Khong tim thay ky tu dieu khien dac biet"
+            Write-ColorLine "  >> Khong tim thay ky tu dieu khien dac biet" $Colors.Blue
+        }
+    } else {
+        Add-DiagLine "  Input: (trong)"
+    }
+
+    Add-DiagLine ""
+    Write-Host ""
+}
+
 function Save-DiagnosticOutput {
     $outputPath = Join-Path (Get-Location) $OUTPUT_FILE
     $script:DiagnosticOutput | Out-File -FilePath $outputPath -Encoding UTF8
@@ -417,6 +444,7 @@ function Main {
     }
 
     Get-IMEInfo
+    Start-DebugMode
 
     # Save output to file
     $outputPath = Save-DiagnosticOutput
@@ -424,7 +452,8 @@ function Main {
 
     # Ask user if they want to create GitHub issue
     Write-Host ""
-    $response = Read-Host "  Ban co muon tao GitHub issue khong? (y/N)"
+    Write-ColorLine "  Ban co muon tao GitHub issue khong? (y/N): " $Colors.Yellow -NoNewLine
+    $response = [Console]::ReadLine()
     if ($response -eq 'y' -or $response -eq 'Y') {
         Create-GitHubIssue
     } else {

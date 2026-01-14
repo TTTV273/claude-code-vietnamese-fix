@@ -31,20 +31,20 @@ curl -fsSL https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix
 
 </details>
 
-### Windows (Beta ⚠️)
+### Windows
 
-> ⚠️ Bản Windows đang trong giai đoạn test, có thể chưa hoạt động với một số version.
+> ✅ Đã test thành công trên Claude Code v2.1.7 (npm)
 
-Cài Claude Code qua npm (nếu chưa có):
+**Yêu cầu:** Chỉ hỗ trợ bản cài qua npm. Nếu bạn cài Claude Code bằng cách khác (installer, scoop...), hãy gỡ cài đặt và cài lại qua npm:
 
 ```cmd
 npm install -g @anthropic-ai/claude-code
 ```
 
-Mở PowerShell, tải và chạy fix:
+Mở PowerShell, chạy:
 
 ```powershell
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix/main/patch-claude-code-vn-win-npm.ps1" -OutFile "patch.ps1"; powershell -ExecutionPolicy Bypass -File .\patch.ps1
+irm https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix/main/patch-claude-code-vn-win-npm.ps1 | iex
 ```
 
 Sau khi fix xong, dùng Claude Code bằng CMD.
