@@ -71,10 +71,10 @@ Nếu vẫn lỗi sau khi fix, chạy script diagnostic và tạo issue trên Gi
 curl -fsSL https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix/main/diagnostic-macos.sh | bash -s -- --issue
 ```
 
-**Windows:**
+**Windows (PowerShell):**
 
 ```powershell
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix/main/diagnostic-windows.ps1" -OutFile "diag.ps1"; powershell -ExecutionPolicy Bypass -File .\diag.ps1 -CreateIssue
+irm https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix/main/diagnostic-windows.ps1 | iex
 ```
 
 ## Lưu ý
