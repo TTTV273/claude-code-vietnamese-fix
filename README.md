@@ -35,15 +35,17 @@ curl -fsSL https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix
 
 Cài Claude Code qua npm (nếu chưa có):
 
-```powershell
+```cmd
 npm install -g @anthropic-ai/claude-code
 ```
 
-Tải và chạy fix:
+Mở PowerShell, tải và chạy fix:
 
 ```powershell
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix/main/patch-claude-code-vn-win-npm.ps1" -OutFile "patch.ps1"; powershell -ExecutionPolicy Bypass -File .\patch.ps1
 ```
+
+Sau khi fix xong, dùng Claude Code bằng CMD.
 
 ## Các lệnh khác
 
