@@ -59,10 +59,26 @@ Sau khi fix xong, dùng Claude Code bằng CMD.
 - Restore: `.\patch-claude-code-vn-win-npm.ps1 restore`
 - Status: `.\patch-claude-code-vn-win-npm.ps1 status`
 
+## Troubleshooting
+
+Nếu vẫn lỗi sau khi fix, chạy script diagnostic và tạo issue trên GitHub:
+
+**macOS:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix/main/diagnostic-macos.sh | bash -s -- --issue
+```
+
+**Windows:**
+
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix/main/diagnostic-windows.ps1" -OutFile "diag.ps1"; powershell -ExecutionPolicy Bypass -File .\diag.ps1 -CreateIssue
+```
+
 ## Lưu ý
 
-- Khi Claude Code update, chạy lại lệnh patch
-- Nếu gặp lỗi sau khi patch, chạy `restore` để khôi phục
+- Khi Claude Code update, chạy lại lệnh fix
+- Nếu gặp lỗi sau khi fix, chạy `restore` để khôi phục
 
 ## Roadmap
 
