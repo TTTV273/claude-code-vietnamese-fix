@@ -31,7 +31,9 @@ curl -fsSL https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix
 
 </details>
 
-### Windows
+### Windows (Beta ⚠️)
+
+> ⚠️ Bản Windows đang trong giai đoạn test, có thể chưa hoạt động với một số version.
 
 Cài Claude Code qua npm (nếu chưa có):
 
