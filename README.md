@@ -1,4 +1,4 @@
-# Vietnamese IME Fix for CLI Tools
+# Claude Code Vietnamese IME Fix
 
 Fix lỗi gõ tiếng Việt Claude Code với các bộ gõ OpenKey, EVKey, PHTV, Unikey... Hỗ trợ cả macOS và Windows.
 
