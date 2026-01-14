@@ -389,10 +389,11 @@ function Main {
         }
     }
 
-    # Pause at end so user can see results
-    Write-Host ""
-    Write-Host "Nhan phim bat ky de dong cua so nay..." -ForegroundColor Gray
-    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }
 
 Main
+
+# Pause at end so user can see results
+Write-Host ""
+Write-Host "Nhan phim bat ky de dong cua so nay..." -ForegroundColor Gray
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
