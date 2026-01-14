@@ -131,11 +131,6 @@ if PATCH_MARKER in content:
     print("ALREADY_PATCHED")
     sys.exit(0)
 
-# The fix code to insert (as raw string literal for JS)
-# After backspacing DEL chars, insert the clean text (without DEL)
-# Note: \\x7f in the JS code means literal \x7f regex pattern
-fix_code = PATCH_MARKER + r'let _phtv_clean=t.replace(/\x7f/g,"");if(_phtv_clean.length>0){for(const _c of _phtv_clean){EA=EA.insert(_c)}if(!j.equals(EA)){if(j.text!==EA.text)Q(EA.text);_(EA.offset)}}'
-
 # Pattern to find the buggy block in Claude Code cli.js
 # The bug: processes backspaces for DEL chars but returns without inserting replacement
 #
@@ -149,17 +144,21 @@ fix_code = PATCH_MARKER + r'let _phtv_clean=t.replace(/\x7f/g,"");if(_phtv_clean
 # We insert our fix BEFORE the cleanup functions (BB0, GB0, etc) and return
 
 patched = False
+var_name = None
 
 # Find the Vietnamese IME handling block using string search (more reliable than regex)
 # Look for the pattern: offset)}FUNC(),FUNC();return}
 # Right after the backspace handling block
 
 # Search for the characteristic pattern of the bug block
+# Different Claude Code versions use different variable names (EA, FA, A, etc.)
 search_patterns = [
-    '_(EA.offset)}',  # End of if block after offset update
+    ('_(FA.offset)}', 'FA'),  # v2.1.7 Windows/newer versions
+    ('_(EA.offset)}', 'EA'),  # Older versions
+    ('_(A.offset)}', 'A'),    # Some versions
 ]
 
-for search_pat in search_patterns:
+for search_pat, vname in search_patterns:
     idx = 0
     while True:
         idx = content.find(search_pat, idx)
@@ -181,10 +180,14 @@ for search_pat in search_patterns:
             # Match: XX0(),YY0();return} or similar cleanup pattern
             match = re.match(r'(\s*\w+\(\)\s*,\s*\w+\(\)\s*;\s*return\s*\})', remaining)
             if match:
-                # Insert fix code right after _(EA.offset)}
+                var_name = vname
+                # Build fix code with correct variable name
+                fix_code = PATCH_MARKER + f'let _phtv_clean=s.replace(/\\x7f/g,"");if(_phtv_clean.length>0){{for(const _c of _phtv_clean){{{var_name}={var_name}.insert(_c)}}if(!j.equals({var_name})){{if(j.text!=={var_name}.text)Q({var_name}.text);_({var_name}.offset)}}}}'
+                # Insert fix code right after _(<VAR>.offset)}
                 insert_point = end_idx
                 content = content[:insert_point] + fix_code + content[insert_point:]
                 patched = True
+                print(f"FOUND_VAR:{var_name}")
                 break
 
         idx += 1
