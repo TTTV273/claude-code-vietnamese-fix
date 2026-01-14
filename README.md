@@ -1,16 +1,22 @@
-# Claude Code Vietnamese IME Fix
+# Vietnamese IME Fix for CLI Tools
 
-Fix lỗi gõ tiếng Việt trong Claude Code CLI trên macOS và Windows. Hỗ trợ các bộ gõ tiếng Việt phổ biến như OpenKey, EVKey, PHTV, Unikey...
+Fix lỗi gõ tiếng Việt Claude Code với các bộ gõ OpenKey, EVKey, PHTV, Unikey... Hỗ trợ cả macOS và Windows.
+
+**Phiên bản đã test:** Claude Code v2.1.6, v2.1.7
 
 ## Cài đặt
 
 ### macOS
 
-```bash
-# Cài Claude Code qua npm (nếu chưa có)
-npm install -g @anthropic-ai/claude-code
+Cài Claude Code qua npm (nếu chưa có):
 
-# Chạy patch
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+Tải và chạy fix:
+
+```bash
 curl -fsSL https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix/main/patch-claude-code-vn-mac-npm.sh | bash
 ```
 
@@ -27,13 +33,16 @@ curl -fsSL https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix
 
 ### Windows
 
-```powershell
-# Cài Claude Code qua npm (nếu chưa có)
-npm install -g @anthropic-ai/claude-code
+Cài Claude Code qua npm (nếu chưa có):
 
-# Tải và chạy patch
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix/main/patch-claude-code-vn-win-npm.ps1" -OutFile "patch-claude-code-vn-win-npm.ps1"
-powershell -ExecutionPolicy Bypass -File .\patch-claude-code-vn-win-npm.ps1
+```powershell
+npm install -g @anthropic-ai/claude-code
+```
+
+Tải và chạy fix:
+
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix/main/patch-claude-code-vn-win-npm.ps1" -OutFile "patch.ps1"; powershell -ExecutionPolicy Bypass -File .\patch.ps1
 ```
 
 ## Các lệnh khác
@@ -52,6 +61,13 @@ powershell -ExecutionPolicy Bypass -File .\patch-claude-code-vn-win-npm.ps1
 
 - Khi Claude Code update, chạy lại lệnh patch
 - Nếu gặp lỗi sau khi patch, chạy `restore` để khôi phục
+
+## Roadmap
+
+Dự kiến hỗ trợ thêm các CLI khác:
+
+- [ ] Gemini CLI
+- [ ] GitHub Copilot CLI
 
 ## Credits
 
