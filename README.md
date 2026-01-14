@@ -44,7 +44,7 @@ npm install -g @anthropic-ai/claude-code
 Mở PowerShell, chạy:
 
 ```powershell
-irm https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix/main/patch-claude-code-vn-win-npm.ps1 | iex
+irm https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix/main/patch-claude-code-vn-win-npm.ps1 -OutFile patch-claude-code-vn-win-npm.ps1; .\patch-claude-code-vn-win-npm.ps1
 ```
 
 Sau khi fix xong, dùng Claude Code bằng CMD.
@@ -56,7 +56,7 @@ Sau khi fix xong, dùng Claude Code bằng CMD.
 - Restore: `patch-claude-code-vn-mac-npm.sh restore`
 - Status: `patch-claude-code-vn-mac-npm.sh status`
 
-**Windows:**
+**Windows (PowerShell):**
 
 - Restore: `.\patch-claude-code-vn-win-npm.ps1 restore`
 - Status: `.\patch-claude-code-vn-win-npm.ps1 status`
