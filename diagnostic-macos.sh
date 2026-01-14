@@ -2,16 +2,17 @@
 #
 # Claude Code Vietnamese IME Fix - Diagnostic Tool (macOS)
 # Thu thap thong tin moi truong de debug loi go tieng Viet.
+# Tu dong luu ket qua ra diagnostic.txt va hoi tao GitHub issue.
 #
 # Usage:
-#   ./diagnostic-macos.sh              # Run diagnostic
-#   ./diagnostic-macos.sh --issue      # Open GitHub to create issue
+#   ./diagnostic-macos.sh
 #
 # https://github.com/manhit96/claude-code-vietnamese-fix
 
 set -e
 
 REPO_URL="https://github.com/manhit96/claude-code-vietnamese-fix"
+OUTPUT_FILE="diagnostic.txt"
 DIAGNOSTIC_OUTPUT=""
 
 # Colors
@@ -225,6 +226,11 @@ get_ime_info() {
     add_line ""
 }
 
+save_diagnostic_output() {
+    echo "$DIAGNOSTIC_OUTPUT" > "$OUTPUT_FILE"
+    echo "$(pwd)/$OUTPUT_FILE"
+}
+
 create_github_issue() {
     # Get version for title prefix
     local claude_version="Unknown"
@@ -282,27 +288,18 @@ $DIAGNOSTIC_OUTPUT
 }
 
 show_summary() {
+    local output_path="$1"
     echo ""
     echo -e "${BLUE}============================================================${NC}"
-    echo -e "${BLUE}  SUMMARY${NC}"
+    echo -e "${BLUE}  HOAN TAT${NC}"
     echo -e "${BLUE}============================================================${NC}"
     echo ""
-    echo "  Copy the output above and paste it when creating an issue at:"
-    echo -e "  ${GREEN}$REPO_URL/issues${NC}"
-    echo ""
-    echo "  Or run with --issue to auto-open GitHub:"
-    echo -e "  ${YELLOW}./diagnostic-macos.sh --issue${NC}"
+    echo -e "  Da luu ket qua vao: ${GREEN}$output_path${NC}"
     echo ""
 }
 
 # Main
 main() {
-    local create_issue=false
-
-    if [ "$1" = "--issue" ] || [ "$1" = "-i" ]; then
-        create_issue=true
-    fi
-
     print_header
     get_system_info
     get_node_info
@@ -310,10 +307,20 @@ main() {
     get_patch_status
     get_ime_info
 
-    if [ "$create_issue" = true ]; then
+    # Save output to file
+    local output_path=$(save_diagnostic_output)
+    show_summary "$output_path"
+
+    # Ask user if they want to create GitHub issue
+    echo ""
+    read -p "  Ban co muon tao GitHub issue khong? (y/N) " response
+    if [ "$response" = "y" ] || [ "$response" = "Y" ]; then
         create_github_issue
     else
-        show_summary
+        echo ""
+        echo "  Copy noi dung file $OUTPUT_FILE va dan khi tao issue tai:"
+        echo -e "  ${GREEN}$REPO_URL/issues${NC}"
+        echo ""
     fi
 }
 

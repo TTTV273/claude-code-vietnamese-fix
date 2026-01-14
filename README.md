@@ -63,12 +63,12 @@ Sau khi fix xong, dùng Claude Code bằng CMD.
 
 ## Troubleshooting
 
-Nếu vẫn lỗi sau khi fix, chạy script diagnostic và tạo issue trên GitHub:
+Nếu vẫn lỗi sau khi fix, chạy script diagnostic (tự động lưu `diagnostic.txt` và hỏi tạo GitHub issue):
 
 **macOS:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix/main/diagnostic-macos.sh | bash -s -- --issue
+curl -fsSL https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix/main/diagnostic-macos.sh | bash
 ```
 
 **Windows (PowerShell):**

@@ -5,26 +5,18 @@
 
 .DESCRIPTION
     Thu thap thong tin moi truong de debug loi go tieng Viet.
-    Co the tu dong tao GitHub issue.
-
-.PARAMETER CreateIssue
-    Tu dong mo trang tao GitHub issue voi thong tin da thu thap
+    Tu dong luu ket qua ra diagnostic.txt va hoi tao GitHub issue.
 
 .EXAMPLE
     .\diagnostic-windows.ps1
-    .\diagnostic-windows.ps1 -CreateIssue
 
 .LINK
     https://github.com/manhit96/claude-code-vietnamese-fix
 #>
 
-[CmdletBinding()]
-param(
-    [switch]$CreateIssue
-)
-
 $ErrorActionPreference = 'Continue'
 $REPO_URL = "https://github.com/manhit96/claude-code-vietnamese-fix"
+$OUTPUT_FILE = "diagnostic.txt"
 
 # Colors
 $script:Colors = @{
@@ -260,8 +252,8 @@ function Get-IMEInfo {
     if ($layouts) {
         foreach ($lang in $layouts) {
             Add-DiagLine "  Ngon ngu: $($lang.LanguageTag)"
-            foreach ($input in $lang.InputMethodTips) {
-                Add-DiagLine "    Kieu go: $input"
+            foreach ($inp in $lang.InputMethodTips) {
+                Add-DiagLine "    Kieu go: $inp"
             }
         }
     } else {
@@ -341,53 +333,10 @@ function Get-PatchCodeDetails {
     Add-DiagLine ""
 }
 
-function Start-DebugMode {
-    Write-Host ""
-    Write-ColorLine "============================================================" $Colors.Yellow
-    Write-ColorLine "  CHE DO DEBUG - Thu thap du lieu nhap" $Colors.Yellow
-    Write-ColorLine "============================================================" $Colors.Yellow
-    Write-Host ""
-    Write-Host "  Phan nay se thu thap du lieu ban phim de phan tich bo go tieng Viet."
-    Write-Host "  Go mot tu tieng Viet (VD: 'viet') roi nhan Enter."
-    Write-Host "  Nhan Ctrl+C de thoat."
-    Write-Host ""
-
-    Write-ColorLine "  Nhap:" $Colors.Green
-    $input = Read-Host
-
-    Write-Host ""
-    Write-ColorLine "  Bytes tho (hex):" $Colors.Yellow
-
-    $bytes = [System.Text.Encoding]::UTF8.GetBytes($input)
-    $hexString = ($bytes | ForEach-Object { '{0:X2}' -f $_ }) -join ' '
-    Write-Host "  $hexString"
-
-    Write-Host ""
-    Write-ColorLine "  Phan tich ky tu:" $Colors.Yellow
-    foreach ($char in $input.ToCharArray()) {
-        $code = [int][char]$char
-        $hex = '{0:X4}' -f $code
-        $desc = switch ($code) {
-            0x7F { "(DEL - danh dau bo go tieng Viet)" }
-            0x08 { "(Backspace)" }
-            default { "" }
-        }
-        Write-Host "  '$char' = U+$hex $desc"
-    }
-
-    # Check for 0x7F
-    if ($input.Contains([char]0x7F)) {
-        Write-Host ""
-        Write-ColorLine "  >> Tim thay ky tu DEL (0x7F) - Day la pattern bo go tieng Viet!" $Colors.Green
-    } elseif ($input.Contains([char]0x08)) {
-        Write-Host ""
-        Write-ColorLine "  >> Tim thay ky tu Backspace (0x08) - Pattern bo go khac!" $Colors.Yellow
-    } else {
-        Write-Host ""
-        Write-ColorLine "  >> Khong tim thay ky tu dieu khien dac biet" $Colors.Blue
-    }
-
-    Write-Host ""
+function Save-DiagnosticOutput {
+    $outputPath = Join-Path (Get-Location) $OUTPUT_FILE
+    $script:DiagnosticOutput | Out-File -FilePath $outputPath -Encoding UTF8
+    return $outputPath
 }
 
 function Create-GitHubIssue {
@@ -429,6 +378,7 @@ $($script:DiagnosticOutput -join "`n")
 "@
 
     # URL encode the body
+    Add-Type -AssemblyName System.Web
     $encodedBody = [System.Web.HttpUtility]::UrlEncode($body)
     $encodedTitle = [System.Web.HttpUtility]::UrlEncode($issueTitle)
 
@@ -443,24 +393,19 @@ $($script:DiagnosticOutput -join "`n")
 }
 
 function Show-Summary {
+    param([string]$OutputPath)
+
     Write-Host ""
     Write-ColorLine "============================================================" $Colors.Blue
-    Write-ColorLine "  TONG KET" $Colors.Blue
+    Write-ColorLine "  HOAN TAT" $Colors.Blue
     Write-ColorLine "============================================================" $Colors.Blue
     Write-Host ""
-    Write-Host "  Copy ket qua o tren va dan khi tao issue tai:"
-    Write-ColorLine "  $REPO_URL/issues" $Colors.Green
-    Write-Host ""
-    Write-Host "  Hoac chay voi -CreateIssue de tu dong mo GitHub:"
-    Write-ColorLine "  .\diagnostic-windows.ps1 -CreateIssue" $Colors.Yellow
+    Write-ColorLine "  Da luu ket qua vao: $OutputPath" $Colors.Green
     Write-Host ""
 }
 
 # Main
 function Main {
-    # Load System.Web for URL encoding
-    Add-Type -AssemblyName System.Web
-
     Write-Header
     Get-SystemInfo
     Get-NodeInfo
@@ -472,12 +417,21 @@ function Main {
     }
 
     Get-IMEInfo
-    Start-DebugMode
 
-    if ($CreateIssue) {
+    # Save output to file
+    $outputPath = Save-DiagnosticOutput
+    Show-Summary -OutputPath $outputPath
+
+    # Ask user if they want to create GitHub issue
+    Write-Host ""
+    $response = Read-Host "  Ban co muon tao GitHub issue khong? (y/N)"
+    if ($response -eq 'y' -or $response -eq 'Y') {
         Create-GitHubIssue
     } else {
-        Show-Summary
+        Write-Host ""
+        Write-Host "  Copy noi dung file $OUTPUT_FILE va dan khi tao issue tai:"
+        Write-ColorLine "  $REPO_URL/issues" $Colors.Green
+        Write-Host ""
     }
 }
 
