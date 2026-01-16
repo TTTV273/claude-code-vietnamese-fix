@@ -1,8 +1,18 @@
 # Claude Code Vietnamese IME Fix
 
-Fix lỗi gõ tiếng Việt Claude Code với các bộ gõ OpenKey, EVKey, PHTV, Unikey... Hỗ trợ cả macOS và Windows.
+Fix lỗi gõ tiếng Việt trong Claude Code CLI với các bộ gõ OpenKey, EVKey, PHTV, Unikey... Hỗ trợ cả macOS và Windows.
 
-**Phiên bản đã test:** Claude Code v2.1.6, v2.1.7
+**Phiên bản đã test:** Claude Code v2.1.6 → v2.1.9
+
+## Vấn đề
+
+Khi gõ tiếng Việt trong Claude Code CLI, các bộ gõ sử dụng kỹ thuật "backspace rồi thay thế" để chuyển đổi ký tự (ví dụ: `a` → `á`). Claude Code xử lý phần backspace nhưng không hiển thị ký tự thay thế, dẫn đến:
+
+- Ký tự bị "nuốt" hoặc mất khi gõ
+- Văn bản hiển thị không đúng với những gì đã gõ
+- Phải copy-paste từ nơi khác thay vì gõ trực tiếp
+
+Script này patch file `cli.js` của Claude Code, thêm logic insert ký tự thay thế sau khi xử lý backspace.
 
 ## Cài đặt
 
@@ -33,7 +43,7 @@ curl -fsSL https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix
 
 ### Windows
 
-> ✅ Đã test thành công trên Claude Code v2.1.7 (npm)
+> ✅ Đã test thành công trên Claude Code v2.1.9 (npm)
 
 **Yêu cầu:** Chỉ hỗ trợ bản cài qua npm. Nếu bạn cài Claude Code bằng cách khác (installer, scoop...), hãy gỡ cài đặt và cài lại qua npm:
 

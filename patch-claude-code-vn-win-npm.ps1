@@ -34,7 +34,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # Patch marker
-$script:PATCH_MARKER = "/* PHTV Vietnamese IME fix */"
+$script:PATCH_MARKER = "/* Vietnamese IME fix */"
 
 # Colors
 $script:Colors = @{
@@ -184,57 +184,82 @@ function Invoke-Patch {
         return $true
     }
 
-    # Find the pattern using regex to match different variable names
-    # Pattern: _(<VAR>.offset)}  where VAR can be EA, FA, or other minified names
+    # Dynamic variable extraction approach
+    # Find the bug block by looking for .includes("\x7f") with actual DEL character
+    $DEL_CHAR = [char]0x7F
+
+    # Find the includes check with DEL character
+    $includesPattern = ".includes(`"$DEL_CHAR`")"
+    $idx = $content.IndexOf($includesPattern)
+
+    if ($idx -eq -1) {
+        Write-ColorLine "   Khong tim thay pattern can patch." $Colors.Red
+        Write-Host "   Code structure co the da thay doi trong phien ban moi."
+        return $false
+    }
+
+    # Find the full if block containing this pattern
+    $blockStart = $content.LastIndexOf('if(', [Math]::Max(0, $idx - 150), [Math]::Min(150, $idx))
+    if ($blockStart -eq -1) {
+        Write-ColorLine "   Khong tim thay block if." $Colors.Red
+        return $false
+    }
+
+    # Find matching closing brace
+    $depth = 0
+    $blockEnd = $idx
+    for ($i = 0; $i -lt 800 -and ($blockStart + $i) -lt $content.Length; $i++) {
+        $c = $content[$blockStart + $i]
+        if ($c -eq '{') { $depth++ }
+        elseif ($c -eq '}') {
+            $depth--
+            if ($depth -eq 0) {
+                $blockEnd = $blockStart + $i + 1
+                break
+            }
+        }
+    }
+
+    $fullBlock = $content.Substring($blockStart, $blockEnd - $blockStart)
+    $fullBlockEscaped = $fullBlock.Replace($DEL_CHAR, '\x7f')
+
+    # Extract variable names dynamically using regex
+    # Pattern: let COUNT=(INPUT.match(/\x7f/g)||[]).length,STATE=CURSTATE;
     $patched = $false
-    $varName = $null
 
-    # Search patterns for different Claude Code versions
-    # v2.1.7 Windows uses FA, older versions use EA
-    $searchPatterns = @(
-        @{ Pattern = '_(FA.offset)}'; Var = 'FA' },
-        @{ Pattern = '_(EA.offset)}'; Var = 'EA' },
-        @{ Pattern = '_(A.offset)}'; Var = 'A' }
-    )
+    if ($fullBlockEscaped -match 'let (\w+)=\(\w+\.match\(/\\x7f/g\)\|\|\[\]\)\.length,(\w+)=(\w+);') {
+        $countVar = $Matches[1]
+        $stateVar = $Matches[2]
+        $curStateVar = $Matches[3]
 
-    foreach ($sp in $searchPatterns) {
-        $searchPattern = $sp.Pattern
-        $varName = $sp.Var
+        # Extract update functions: UPDATETEXT(STATE.text);UPDATEOFFSET(STATE.offset)
+        if ($fullBlock -match "(\w+)\($stateVar\.text\);(\w+)\($stateVar\.offset\)") {
+            $updateTextFunc = $Matches[1]
+            $updateOffsetFunc = $Matches[2]
 
-        $idx = 0
-        while ($true) {
-            $idx = $content.IndexOf($searchPattern, $idx)
-            if ($idx -eq -1) { break }
+            # Extract input variable from includes check: INPUT.includes
+            if ($fullBlock -match '(\w+)\.includes\("') {
+                $inputVar = $Matches[1]
 
-            # Check context before this point (should have backspace loop)
-            $startCtx = [Math]::Max(0, $idx - 500)
-            $context = $content.Substring($startCtx, $idx - $startCtx)
+                # Find insertion point: right after UPDATEOFFSET(STATE.offset)}
+                $insertPattern = "$updateOffsetFunc\($stateVar\.offset\)\}"
+                $insertMatch = [regex]::Match($fullBlock, [regex]::Escape($insertPattern))
 
-            # Verify this is the Vietnamese IME block
-            if (($context -match 'backspace\(\)') -and (($context -match '\.match\(/\\x7f/g\)') -or ($context -match '\.match\(/\x7f/g\)'))) {
-                # Find the return statement after this
-                $endIdx = $idx + $searchPattern.Length
+                if ($insertMatch.Success) {
+                    # Calculate absolute position for insertion
+                    $relativePos = $insertMatch.Index + $insertMatch.Length
+                    $absolutePos = $blockStart + $relativePos
 
-                # Look for pattern: FUNC(),FUNC();return}
-                $remaining = $content.Substring($endIdx, [Math]::Min(100, $content.Length - $endIdx))
+                    # Build fix code with extracted variable names
+                    $fixCode = $PATCH_MARKER + "let _vn=$inputVar.replace(/\x7f/g,`"`");if(_vn.length>0){for(const _c of _vn)$stateVar=$stateVar.insert(_c);if(!$curStateVar.equals($stateVar)){if($curStateVar.text!==$stateVar.text)$updateTextFunc($stateVar.text);$updateOffsetFunc($stateVar.offset)}}"
 
-                # Match cleanup pattern like: XX0(),YY0();return}
-                if ($remaining -match '^(\s*\w+\(\)\s*,\s*\w+\(\)\s*;\s*return\s*\})') {
-                    # Build fix code with correct variable name
-                    $fixCode = $PATCH_MARKER + "let _phtv_clean=s.replace(/\x7f/g,`"`");if(_phtv_clean.length>0){for(const _c of _phtv_clean){$varName=$varName.insert(_c)}if(!j.equals($varName)){if(j.text!==$varName.text)Q($varName.text);_($varName.offset)}}"
-
-                    # Insert fix code right after _(<VAR>.offset)}
-                    $content = $content.Substring(0, $endIdx) + $fixCode + $content.Substring($endIdx)
+                    # Insert fix code
+                    $content = $content.Substring(0, $absolutePos) + $fixCode + $content.Substring($absolutePos)
                     $patched = $true
-                    Write-Host "   Tim thay pattern voi bien: $varName"
-                    break
+                    Write-Host "   Tim thay: input=$inputVar, state=$stateVar, cur=$curStateVar"
                 }
             }
-
-            $idx++
         }
-
-        if ($patched) { break }
     }
 
     if ($patched) {
