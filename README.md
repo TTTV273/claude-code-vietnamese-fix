@@ -92,13 +92,6 @@ irm https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix/main/d
 - Khi Claude Code update, chạy lại lệnh fix
 - Nếu gặp lỗi sau khi fix, chạy `restore` để khôi phục
 
-## Roadmap
-
-Dự kiến hỗ trợ thêm các CLI khác:
-
-- [ ] Gemini CLI
-- [ ] GitHub Copilot CLI
-
 ## Credits
 
 Tham khảo và cải tiến từ [PHTV](https://github.com/phamhungtien/PHTV) để hỗ trợ Claude Code version mới.
