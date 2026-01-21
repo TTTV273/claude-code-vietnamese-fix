@@ -2,7 +2,11 @@
 
 Fix lỗi gõ tiếng Việt trong Claude Code CLI với các bộ gõ OpenKey, EVKey, PHTV, Unikey... Hỗ trợ cả macOS và Windows.
 
-**Phiên bản đã test:** Claude Code v2.1.6 → v2.1.9
+## Tương thích
+
+✅ **Tự động tương thích với các phiên bản mới** - Script tự động phát hiện và sửa lỗi, hoạt động với hầu hết các phiên bản Claude Code mà không cần cập nhật.
+
+**Đã test:** Claude Code v2.1.6 → v2.1.14 (cập nhật 2026-01-21)
 
 ## Vấn đề
 
@@ -12,7 +16,13 @@ Khi gõ tiếng Việt trong Claude Code CLI, các bộ gõ sử dụng kỹ thu
 - Văn bản hiển thị không đúng với những gì đã gõ
 - Phải copy-paste từ nơi khác thay vì gõ trực tiếp
 
-Script này patch file `cli.js` của Claude Code, thêm logic insert ký tự thay thế sau khi xử lý backspace.
+## Giải pháp
+
+Script này sửa lỗi bằng cách:
+
+- Tự động tìm vị trí xử lý backspace trong Claude Code
+- Thêm logic để hiển thị ký tự tiếng Việt đúng sau khi gõ
+- Hoạt động với mọi phiên bản Claude Code (kể cả khi code bị nén/tối ưu)
 
 ## Cài đặt
 
@@ -42,8 +52,6 @@ curl -fsSL https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix
 </details>
 
 ### Windows
-
-> ✅ Đã test thành công trên Claude Code v2.1.9 (npm)
 
 **Yêu cầu:** Chỉ hỗ trợ bản cài qua npm. Nếu bạn cài Claude Code bằng cách khác (installer, scoop...), hãy gỡ cài đặt và cài lại qua npm:
 
@@ -89,8 +97,10 @@ irm https://raw.githubusercontent.com/manhit96/claude-code-vietnamese-fix/main/d
 
 ## Lưu ý
 
-- Khi Claude Code update, chạy lại lệnh fix
-- Nếu gặp lỗi sau khi fix, chạy `restore` để khôi phục
+- **Tự động tương thích:** Script tự động phát hiện và sửa lỗi, hoạt động với hầu hết phiên bản Claude Code mới
+- **Khi update Claude Code:** Chạy lại lệnh fix sau khi update
+- **Kiểm tra trạng thái:** Dùng lệnh `status` để xem đã fix chưa và lỗi có còn tồn tại không
+- **Khôi phục nếu lỗi:** Nếu gặp vấn đề, chạy `restore` để khôi phục về bản gốc
 
 ## Credits
 
