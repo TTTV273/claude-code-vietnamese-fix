@@ -13,9 +13,27 @@
 .vscode/
 *.swp
 *.swo
+.claude/
+plans/
 
 # Logs
 *.log
 
+.venv/
+__pycache__/
+
 # Source archives for local analysis only
 sources/
+
+# Test sources (downloaded Claude Code versions)
+.pytest_cache
+tests/sources/
+tests/.venv/
+tests/__pycache__/
+tests/.pytest_cache/
+
+# Auto-generated docs (by Claude)
+docs/
+
+# Repomix output
+repomix-output.xml
