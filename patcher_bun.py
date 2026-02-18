@@ -36,13 +36,14 @@ BUG_PATTERN = (
 )
 
 # Fixed code - does backspace + insert replacement text
-# Optimized to be same length as bug pattern (241 bytes)
+# Uses safe internal variable names (q,r,t,u) that won't conflict with
+# function parameters regardless of minifier output.
 FIX_CODE = (
     b'if(!DT.backspace&&!DT.delete&&RT.includes("\\x7F")){'
-    b'let n=(RT.match(/\\x7f/g)||[]).length,v=RT.replace(/\\x7f/g,""),s=b;'
-    b'for(;n--;)s=s.backspace();'
-    b'for(let c of v)s=s.insert(c);'
-    b'if(!b.equals(s)){if(b.text!==s.text)R(s.text);w(s.offset)}'
+    b'let q=(RT.match(/\\x7f/g)||[]).length,r=RT.replace(/\\x7f/g,""),t=b;'
+    b'for(;q--;)t=t.backspace();'
+    b'for(let u of r)t=t.insert(u);'
+    b'if(!b.equals(t)){if(b.text!==t.text)R(t.text);w(t.offset)}'
     b'return}'
 )
 
@@ -120,21 +121,51 @@ def generate_fix(original_pattern):
     )
 
     match = pattern.match(original_pattern)
-    if not match:
-        # Use default FIX_CODE for exact BUG_PATTERN match
-        fix = FIX_CODE
-    else:
-        # Generate fix with extracted variable names
+    if match:
+        # Original bug pattern (with deleteTokenBefore) - extract var names
         dt, rt, _, _, state_var, _, update_text, update_offset, _, _ = match.groups()
-
-        fix = (
-            b'if(!' + dt + b'.backspace&&!' + dt + b'.delete&&' + rt + b'.includes("\\x7F")){'
-            b'let n=(' + rt + b'.match(/\\x7f/g)||[]).length,v=' + rt + b'.replace(/\\x7f/g,""),s=' + state_var + b';'
-            b'for(;n--;)s=s.backspace();'
-            b'for(let c of v)s=s.insert(c);'
-            b'if(!' + state_var + b'.equals(s)){if(' + state_var + b'.text!==s.text)' + update_text + b'(s.text);' + update_offset + b'(s.offset)}'
-            b'return}'
+    else:
+        # Check for broken patch from older patcher versions (TDZ variable conflict).
+        # Old patcher reused the input string param name as the state alias,
+        # causing "Cannot access 's' before initialization" in JS strict mode.
+        broken_pattern = re.compile(
+            rb'if\(!(\w+)\.backspace&&!\1\.delete&&(\w+)\.includes\("\\x7F"\)\){'
+            rb'let n=\(\2\.match\(/\\x7f/g\)\|\|\[\]\)\.length,v=\2\.replace\(/\\x7f/g,""\),(\w+)=(\w+);'
+            rb'for\(;n--;\)\3=\3\.backspace\(\);'
+            rb'for\(let c of v\)\3=\3\.insert\(c\);'
+            rb'if\(!\4\.equals\(\3\)\){if\(\4\.text!==\3\.text\)(\w+)\(\3\.text\);(\w+)\(\3\.offset\)}'
+            rb'return[ ]*}'
         )
+        broken_match = broken_pattern.match(original_pattern)
+        if broken_match:
+            dt, rt, _, state_var, update_text, update_offset = broken_match.groups()
+        else:
+            # Use default FIX_CODE for exact BUG_PATTERN match
+            fix = FIX_CODE
+            original_len = len(original_pattern)
+            fix_len = len(fix)
+            if fix_len > original_len:
+                raise RuntimeError(
+                    f"Fix code ({fix_len}) dài hơn original ({original_len}). "
+                    "Cần tối ưu thêm."
+                )
+            if fix_len < original_len:
+                padding = b' ' * (original_len - fix_len)
+                fix = fix[:-1] + padding + b'}'
+            return fix
+
+    # Use safe internal variable names (q, r, t, u) that are single-char
+    # and won't collide with function parameters regardless of minifier output.
+    # Avoids the JS TDZ (Temporal Dead Zone) ReferenceError that occurs when
+    # a fix variable name (e.g. 's') matches the outer function parameter.
+    fix = (
+        b'if(!' + dt + b'.backspace&&!' + dt + b'.delete&&' + rt + b'.includes("\\x7F")){'
+        b'let q=(' + rt + b'.match(/\\x7f/g)||[]).length,r=' + rt + b'.replace(/\\x7f/g,""),t=' + state_var + b';'
+        b'for(;q--;)t=t.backspace();'
+        b'for(let u of r)t=t.insert(u);'
+        b'if(!' + state_var + b'.equals(t)){if(' + state_var + b'.text!==t.text)' + update_text + b'(t.text);' + update_offset + b'(t.offset)}'
+        b'return}'
+    )
 
     original_len = len(original_pattern)
     fix_len = len(fix)
@@ -184,7 +215,7 @@ def find_all_bug_patterns(content):
     if results:
         return results
 
-    # Try regex for variable name variations
+    # Try regex for variable name variations (original bug with deleteTokenBefore)
     pattern = re.compile(
         rb'if\(!(\w+)\.backspace&&!\1\.delete&&(\w+)\.includes\("\\x7F"\)\){'
         rb'let (\w+)=\(\2\.match\(/\\x7f/g\)\|\|\[\]\)\.length,(\w+)=(\w+);'
@@ -195,6 +226,27 @@ def find_all_bug_patterns(content):
 
     for match in pattern.finditer(content):
         results.append((match.start(), match.group(0)))
+
+    if results:
+        return results
+
+    # Detect broken patch: old patcher used variable names that conflict with
+    # function parameters (TDZ ReferenceError in JS), causing garbled input.
+    # Re-patch these to use safe internal variable names (q, r, t, u).
+    broken_pattern = re.compile(
+        rb'if\(!(\w+)\.backspace&&!\1\.delete&&(\w+)\.includes\("\\x7F"\)\){'
+        rb'let n=\(\2\.match\(/\\x7f/g\)\|\|\[\]\)\.length,v=\2\.replace\(/\\x7f/g,""\),(\w+)=(\w+);'
+        rb'for\(;n--;\)\3=\3\.backspace\(\);'
+        rb'for\(let c of v\)\3=\3\.insert\(c\);'
+        rb'if\(!\4\.equals\(\3\)\){if\(\4\.text!==\3\.text\)(\w+)\(\3\.text\);(\w+)\(\3\.offset\)}'
+        rb'return[ ]*}'
+    )
+
+    for match in broken_pattern.finditer(content):
+        dt, rt, st, sv = match.group(1), match.group(2), match.group(3), match.group(4)
+        if rt == st:
+            # TDZ conflict confirmed - treat as needs re-patching
+            results.append((match.start(), match.group(0)))
 
     if not results:
         raise RuntimeError(
