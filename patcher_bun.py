@@ -91,11 +91,11 @@ def find_bug_pattern(content):
     # Try regex for variable name variations
     # The pattern structure is consistent but variable names may differ
     pattern = re.compile(
-        rb'if\(!(\w+)\.backspace&&!\1\.delete&&(\w+)\.includes\("\\x7F"\)\){'
-        rb'let (\w+)=\(\2\.match\(/\\x7f/g\)\|\|\[\]\)\.length,(\w+)=(\w+);'
-        rb'for\(let (\w+)=0;\6<\3;\6\+\+\)\4=\4\.deleteTokenBefore\(\)\?\?\4\.backspace\(\);'
-        rb'if\(!\5\.equals\(\4\)\){if\(\5\.text!==\4\.text\)(\w+)\(\4\.text\);(\w+)\(\4\.offset\)}'
-        rb'(\w+)\(\),(\w+)\(\);return}'
+        rb'if\(!([\w$]+)\.backspace&&!\1\.delete&&([\w$]+)\.includes\("\\x7F"\)\){'
+        rb'let ([\w$]+)=\(\2\.match\(/\\x7f/g\)\|\|\[\]\)\.length,([\w$]+)=([\w$]+);'
+        rb'for\(let ([\w$]+)=0;\6<\3;\6\+\+\)\4=\4\.deleteTokenBefore\(\)\?\?\4\.backspace\(\);'
+        rb'if\(!\5\.equals\(\4\)\){if\(\5\.text!==\4\.text\)([\w$]+)\(\4\.text\);([\w$]+)\(\4\.offset\)}'
+        rb'([\w$]+)\(\),([\w$]+)\(\);return}'
     )
 
     match = pattern.search(content)
@@ -112,11 +112,11 @@ def generate_fix(original_pattern):
     """Generate fix code with same length as original."""
     # Extract variable names from original pattern
     pattern = re.compile(
-        rb'if\(!(\w+)\.backspace&&!\1\.delete&&(\w+)\.includes\("\\x7F"\)\){'
-        rb'let (\w+)=\(\2\.match\(/\\x7f/g\)\|\|\[\]\)\.length,(\w+)=(\w+);'
-        rb'for\(let (\w+)=0;\6<\3;\6\+\+\)\4=\4\.deleteTokenBefore\(\)\?\?\4\.backspace\(\);'
-        rb'if\(!\5\.equals\(\4\)\){if\(\5\.text!==\4\.text\)(\w+)\(\4\.text\);(\w+)\(\4\.offset\)}'
-        rb'(\w+)\(\),(\w+)\(\);return}'
+        rb'if\(!([\w$]+)\.backspace&&!\1\.delete&&([\w$]+)\.includes\("\\x7F"\)\){'
+        rb'let ([\w$]+)=\(\2\.match\(/\\x7f/g\)\|\|\[\]\)\.length,([\w$]+)=([\w$]+);'
+        rb'for\(let ([\w$]+)=0;\6<\3;\6\+\+\)\4=\4\.deleteTokenBefore\(\)\?\?\4\.backspace\(\);'
+        rb'if\(!\5\.equals\(\4\)\){if\(\5\.text!==\4\.text\)([\w$]+)\(\4\.text\);([\w$]+)\(\4\.offset\)}'
+        rb'([\w$]+)\(\),([\w$]+)\(\);return}'
     )
 
     match = pattern.match(original_pattern)
@@ -186,11 +186,11 @@ def find_all_bug_patterns(content):
 
     # Try regex for variable name variations
     pattern = re.compile(
-        rb'if\(!(\w+)\.backspace&&!\1\.delete&&(\w+)\.includes\("\\x7F"\)\){'
-        rb'let (\w+)=\(\2\.match\(/\\x7f/g\)\|\|\[\]\)\.length,(\w+)=(\w+);'
-        rb'for\(let (\w+)=0;\6<\3;\6\+\+\)\4=\4\.deleteTokenBefore\(\)\?\?\4\.backspace\(\);'
-        rb'if\(!\5\.equals\(\4\)\){if\(\5\.text!==\4\.text\)(\w+)\(\4\.text\);(\w+)\(\4\.offset\)}'
-        rb'(\w+)\(\),(\w+)\(\);return}'
+        rb'if\(!([\w$]+)\.backspace&&!\1\.delete&&([\w$]+)\.includes\("\\x7F"\)\){'
+        rb'let ([\w$]+)=\(\2\.match\(/\\x7f/g\)\|\|\[\]\)\.length,([\w$]+)=([\w$]+);'
+        rb'for\(let ([\w$]+)=0;\6<\3;\6\+\+\)\4=\4\.deleteTokenBefore\(\)\?\?\4\.backspace\(\);'
+        rb'if\(!\5\.equals\(\4\)\){if\(\5\.text!==\4\.text\)([\w$]+)\(\4\.text\);([\w$]+)\(\4\.offset\)}'
+        rb'([\w$]+)\(\),([\w$]+)\(\);return}'
     )
 
     for match in pattern.finditer(content):
