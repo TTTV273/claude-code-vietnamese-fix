@@ -36,14 +36,12 @@ BUG_PATTERN = (
 )
 
 # Fixed code - does backspace + insert replacement text
-# Optimized to be same length as bug pattern (241 bytes)
+# Single-loop processes chars in IME order; preserves NRH/ORH reset calls
 FIX_CODE = (
     b'if(!DT.backspace&&!DT.delete&&RT.includes("\\x7F")){'
-    b'let n=(RT.match(/\\x7f/g)||[]).length,v=RT.replace(/\\x7f/g,""),s=b;'
-    b'for(;n--;)s=s.backspace();'
-    b'for(let c of v)s=s.insert(c);'
+    b'let s=b;for(let c of RT)c==="\\x7f"?s=s.backspace():s=s.insert(c);'
     b'if(!b.equals(s)){if(b.text!==s.text)R(s.text);w(s.offset)}'
-    b'return}'
+    b'WyT(),QyT();return}'
 )
 
 
@@ -125,15 +123,13 @@ def generate_fix(original_pattern):
         fix = FIX_CODE
     else:
         # Generate fix with extracted variable names
-        dt, rt, _, _, state_var, _, update_text, update_offset, _, _ = match.groups()
+        dt, rt, _, _, state_var, _, update_text, update_offset, fn1, fn2 = match.groups()
 
         fix = (
             b'if(!' + dt + b'.backspace&&!' + dt + b'.delete&&' + rt + b'.includes("\\x7F")){'
-            b'let n=(' + rt + b'.match(/\\x7f/g)||[]).length,v=' + rt + b'.replace(/\\x7f/g,""),s=' + state_var + b';'
-            b'for(;n--;)s=s.backspace();'
-            b'for(let c of v)s=s.insert(c);'
+            b'let s=' + state_var + b';for(let c of ' + rt + b')c==="\\x7f"?s=s.backspace():s=s.insert(c);'
             b'if(!' + state_var + b'.equals(s)){if(' + state_var + b'.text!==s.text)' + update_text + b'(s.text);' + update_offset + b'(s.offset)}'
-            b'return}'
+            + fn1 + b'(),' + fn2 + b'();return}'
         )
 
     original_len = len(original_pattern)
