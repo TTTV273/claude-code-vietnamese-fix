@@ -25,8 +25,9 @@ from datetime import datetime
 
 PATCH_MARKER = b"/* VN-IME-FIX */"
 
-# Bug pattern in Bun binary (JavaScript embedded as text)
-# This handles Vietnamese IME backspace+replace incorrectly - only deletes, doesn't insert
+# ── Legacy pattern (Claude Code < 2.1.114) ────────────────────────────────────
+# The old code had an explicit but broken Vietnamese IME handler that deleted
+# chars but never inserted the replacements.
 BUG_PATTERN = (
     b'if(!DT.backspace&&!DT.delete&&RT.includes("\\x7F")){'
     b'let XT=(RT.match(/\\x7f/g)||[]).length,IT=b;'
@@ -35,13 +36,58 @@ BUG_PATTERN = (
     b'WyT(),QyT();return}'
 )
 
-# Fixed code - does backspace + insert replacement text
-# Single-loop processes chars in IME order; preserves NRH/ORH reset calls
 FIX_CODE = (
     b'if(!DT.backspace&&!DT.delete&&RT.includes("\\x7F")){'
     b'let s=b;for(let c of RT)c==="\\x7f"?s=s.backspace():s=s.insert(c);'
     b'if(!b.equals(s)){if(b.text!==s.text)R(s.text);w(s.offset)}'
     b'WyT(),QyT();return}'
+)
+
+# ── New pattern (Claude Code >= 2.1.114) ─────────────────────────────────────
+# The explicit IME handler was removed; the key-handler function t() now simply
+# calls p.insert(ZH) without any \x7f check, so Vietnamese IME input is broken.
+# Fix: replace the entire function t body with a compacted version that adds
+# the \x7f check and frees space via switch-case merges.
+BUG_PATTERN_NEW = (
+    b'function t($H,ZH){switch($H.key){'
+    b'case"escape":if(X)return;return Q(),p;'
+    b'case"left":if($H.ctrl||$H.meta||$H.fn)return p.prevWord();if(T&&!$H.shift&&p.text==="")return T(),p;return p.left();'
+    b'case"right":if($H.ctrl||$H.meta||$H.fn)return p.nextWord();return p.right();'
+    b'case"up":if($H.shift||$H.ctrl||$H.meta)return;return e();'
+    b'case"down":if($H.shift||$H.ctrl||$H.meta)return;return s();'
+    b'case"backspace":if($H.superKey)return TH();if($H.meta||$H.ctrl)return HH();return p.deleteTokenBefore()??p.backspace();'
+    b'case"delete":if($H.superKey)return _H();if($H.meta)return _H();return p.del();'
+    b'case"home":if($H.ctrl)return;return p.startOfLine();'
+    b'case"end":if($H.ctrl)return;return p.endOfLine();'
+    b'case"pagedown":if(Uq()||$H.ctrl)return;return p.endOfLine();'
+    b'case"pageup":if(Uq()||$H.ctrl)return;return p.startOfLine();'
+    b'case"return":if($H.ctrl)return;return wH($H);'
+    b'case"enter":return p.insert(`\n`);'
+    b'case"tab":return}'
+    b'if($H.ctrl)return jH($H.key);if($H.meta)return YH($H.key);if(ot4.has($H.key))return;if(ZH.length===0)return;if(p.isAtStart()&&lK9(ZH))return p.insert(ZH).left();return p.insert(ZH)}'
+)
+
+# Fix: compact switch cases to free ~92 bytes, use the space for the IME check.
+# Semantically equivalent transformations applied to up/down, backspace, delete,
+# home/end, pagedown/pageup, and the tail condition chain.
+FIX_CODE_NEW = (
+    b'function t($H,ZH){switch($H.key){'
+    b'case"escape":if(X)return;return Q(),p;'
+    b'case"left":if($H.ctrl||$H.meta||$H.fn)return p.prevWord();if(T&&!$H.shift&&p.text==="")return T(),p;return p.left();'
+    b'case"right":if($H.ctrl||$H.meta||$H.fn)return p.nextWord();return p.right();'
+    b'case"up":case"down":if($H.shift||$H.ctrl||$H.meta)return;return $H.key==="up"?e():s();'
+    b'case"backspace":return $H.superKey?TH():$H.meta||$H.ctrl?HH():p.deleteTokenBefore()??p.backspace();'
+    b'case"delete":return $H.superKey||$H.meta?_H():p.del();'
+    b'case"home":case"end":if($H.ctrl)return;return p[$H.key==="home"?"startOfLine":"endOfLine"]();'
+    b'case"pagedown":case"pageup":if(Uq()||$H.ctrl)return;return p[$H.key==="pagedown"?"endOfLine":"startOfLine"]();'
+    b'case"return":if($H.ctrl)return;return wH($H);'
+    b'case"enter":return p.insert(`\n`);'
+    b'case"tab":return}'
+    b'if($H.ctrl)return jH($H.key);if($H.meta)return YH($H.key);'
+    b'if(ot4.has($H.key)||!ZH)return;'
+    b'/* VN-IME-FIX */'
+    b'if(ZH.includes("\\x7f"))return[...ZH].reduce((s,c)=>"\\x7f"==c?s.backspace():s.insert(c),p);'
+    b'return p.isAtStart()&&lK9(ZH)?p.insert(ZH).left():p.insert(ZH)}'
 )
 
 
@@ -79,58 +125,31 @@ def find_bun_binary():
     )
 
 
-def find_bug_pattern(content):
-    """Find the Vietnamese IME bug pattern in binary."""
-    # Try exact match first
-    idx = content.find(BUG_PATTERN)
-    if idx != -1:
-        return idx, BUG_PATTERN
-
-    # Try regex for variable name variations
-    # The pattern structure is consistent but variable names may differ
-    pattern = re.compile(
-        rb'if\(!([\w$]+)\.backspace&&!\1\.delete&&([\w$]+)\.includes\("\\x7F"\)\){'
-        rb'let ([\w$]+)=\(\2\.match\(/\\x7f/g\)\|\|\[\]\)\.length,([\w$]+)=([\w$]+);'
-        rb'for\(let ([\w$]+)=0;\6<\3;\6\+\+\)\4=\4\.deleteTokenBefore\(\)\?\?\4\.backspace\(\);'
-        rb'if\(!\5\.equals\(\4\)\){if\(\5\.text!==\4\.text\)([\w$]+)\(\4\.text\);([\w$]+)\(\4\.offset\)}'
-        rb'([\w$]+)\(\),([\w$]+)\(\);return}'
-    )
-
-    match = pattern.search(content)
-    if match:
-        return match.start(), match.group(0)
-
-    raise RuntimeError(
-        'Không tìm thấy bug pattern trong binary.\n'
-        'Claude Code có thể đã được Anthropic fix hoặc đây không phải Bun binary.'
-    )
-
-
 def generate_fix(original_pattern):
     """Generate fix code with same length as original."""
-    # Extract variable names from original pattern
-    pattern = re.compile(
-        rb'if\(!([\w$]+)\.backspace&&!\1\.delete&&([\w$]+)\.includes\("\\x7F"\)\){'
-        rb'let ([\w$]+)=\(\2\.match\(/\\x7f/g\)\|\|\[\]\)\.length,([\w$]+)=([\w$]+);'
-        rb'for\(let ([\w$]+)=0;\6<\3;\6\+\+\)\4=\4\.deleteTokenBefore\(\)\?\?\4\.backspace\(\);'
-        rb'if\(!\5\.equals\(\4\)\){if\(\5\.text!==\4\.text\)([\w$]+)\(\4\.text\);([\w$]+)\(\4\.offset\)}'
-        rb'([\w$]+)\(\),([\w$]+)\(\);return}'
-    )
-
-    match = pattern.match(original_pattern)
-    if not match:
-        # Use default FIX_CODE for exact BUG_PATTERN match
-        fix = FIX_CODE
+    # New pattern (>= v2.1.114): entire function t body
+    if original_pattern == BUG_PATTERN_NEW:
+        fix = FIX_CODE_NEW
     else:
-        # Generate fix with extracted variable names
-        dt, rt, _, _, state_var, _, update_text, update_offset, fn1, fn2 = match.groups()
-
-        fix = (
-            b'if(!' + dt + b'.backspace&&!' + dt + b'.delete&&' + rt + b'.includes("\\x7F")){'
-            b'let s=' + state_var + b';for(let c of ' + rt + b')c==="\\x7f"?s=s.backspace():s=s.insert(c);'
-            b'if(!' + state_var + b'.equals(s)){if(' + state_var + b'.text!==s.text)' + update_text + b'(s.text);' + update_offset + b'(s.offset)}'
-            + fn1 + b'(),' + fn2 + b'();return}'
+        # Legacy pattern: extract variable names via regex
+        legacy_re = re.compile(
+            rb'if\(!([\w$]+)\.backspace&&!\1\.delete&&([\w$]+)\.includes\("\\x7F"\)\){'
+            rb'let ([\w$]+)=\(\2\.match\(/\\x7f/g\)\|\|\[\]\)\.length,([\w$]+)=([\w$]+);'
+            rb'for\(let ([\w$]+)=0;\6<\3;\6\+\+\)\4=\4\.deleteTokenBefore\(\)\?\?\4\.backspace\(\);'
+            rb'if\(!\5\.equals\(\4\)\){if\(\5\.text!==\4\.text\)([\w$]+)\(\4\.text\);([\w$]+)\(\4\.offset\)}'
+            rb'([\w$]+)\(\),([\w$]+)\(\);return}'
         )
+        match = legacy_re.match(original_pattern)
+        if not match:
+            fix = FIX_CODE
+        else:
+            dt, rt, _, _, state_var, _, update_text, update_offset, fn1, fn2 = match.groups()
+            fix = (
+                b'if(!' + dt + b'.backspace&&!' + dt + b'.delete&&' + rt + b'.includes("\\x7F")){'
+                b'let s=' + state_var + b';for(let c of ' + rt + b')c==="\\x7f"?s=s.backspace():s=s.insert(c);'
+                b'if(!' + state_var + b'.equals(s)){if(' + state_var + b'.text!==s.text)' + update_text + b'(s.text);' + update_offset + b'(s.offset)}'
+                + fn1 + b'(),' + fn2 + b'();return}'
+            )
 
     original_len = len(original_pattern)
     fix_len = len(fix)
@@ -141,9 +160,8 @@ def generate_fix(original_pattern):
             "Cần tối ưu thêm."
         )
 
-    # Pad with spaces to match original length
+    # Pad with spaces before the closing } to match original length
     if fix_len < original_len:
-        # Insert spaces before the closing }
         padding = b' ' * (original_len - fix_len)
         fix = fix[:-1] + padding + b'}'
 
@@ -168,7 +186,19 @@ def find_all_bug_patterns(content):
     """Find all Vietnamese IME bug patterns in binary."""
     results = []
 
-    # Find all occurrences using exact match
+    # ── New pattern (>= v2.1.114): entire function t body ─────────────────────
+    start = 0
+    while True:
+        idx = content.find(BUG_PATTERN_NEW, start)
+        if idx == -1:
+            break
+        results.append((idx, BUG_PATTERN_NEW))
+        start = idx + len(BUG_PATTERN_NEW)
+
+    if results:
+        return results
+
+    # ── Legacy exact match ─────────────────────────────────────────────────────
     start = 0
     while True:
         idx = content.find(BUG_PATTERN, start)
@@ -180,16 +210,15 @@ def find_all_bug_patterns(content):
     if results:
         return results
 
-    # Try regex for variable name variations
-    pattern = re.compile(
+    # ── Legacy regex fallback (variable name variations) ─────────────────────
+    legacy_re = re.compile(
         rb'if\(!([\w$]+)\.backspace&&!\1\.delete&&([\w$]+)\.includes\("\\x7F"\)\){'
         rb'let ([\w$]+)=\(\2\.match\(/\\x7f/g\)\|\|\[\]\)\.length,([\w$]+)=([\w$]+);'
         rb'for\(let ([\w$]+)=0;\6<\3;\6\+\+\)\4=\4\.deleteTokenBefore\(\)\?\?\4\.backspace\(\);'
         rb'if\(!\5\.equals\(\4\)\){if\(\5\.text!==\4\.text\)([\w$]+)\(\4\.text\);([\w$]+)\(\4\.offset\)}'
         rb'([\w$]+)\(\),([\w$]+)\(\);return}'
     )
-
-    for match in pattern.finditer(content):
+    for match in legacy_re.finditer(content):
         results.append((match.start(), match.group(0)))
 
     if not results:
